@@ -1,0 +1,18 @@
+{
+    "name": "hexlet/code",
+    "description": "Page Analyzer",
+    "type": "project",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Hexlet\\Code\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Евгений Кадыков",
+            "email": "kadykov_e_v@mail.ru"
+        }
+    ],
+    "require": {}
+}
