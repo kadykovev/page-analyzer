@@ -1,0 +1,26 @@
+<main class="flex-grow-1">
+    <div class="container-lg mt-3">
+        <h1>Сайты</h1>
+    <div class="table-responsive">
+    <table class="table table-bordered table-hover text-nowrap" data-test="urls">
+        <tbody>
+            <tr>
+                <th>ID</th>
+                <th>Имя</th>
+                <th>Последняя проверка</th>
+                <th>Код ответа</th>
+            </tr>
+            <?php foreach ($urlsData as $urlData) : ?>
+                <tr>
+                    <td><?= $urlData['id'] ?></td>
+                    <td>
+                        <a href="/urls/<?= $urlData['id'] ?>"><?= $urlData['name'] ?></a>
+                    </td>
+                    <td></td>
+                    <td></td>
+                </tr>
+            <?php endforeach ?>
+        </tbody>
+    </table>
+</div></div>
+</main>

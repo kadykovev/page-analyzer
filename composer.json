@@ -20,11 +20,18 @@
         "slim/slim": "^4.12",
         "slim/psr7": "^1.6",
         "slim/http": "^1.3",
-        "php-di/php-di": "^7.0"
+        "php-di/php-di": "^7.0",
+        "slim/flash": "^0.4.0",
+        "illuminate/support": "^10.41",
+        "nesbot/carbon": "^2.72",
+        "vlucas/valitron": "^1.4"
     },
     "scripts": {
         "post-autoload-dump": [
             "@php -r \"copy('vendor/twbs/bootstrap/dist/css/bootstrap.min.css', 'public/css/bootstrap.min.css');\""
         ]
+    },
+    "require-dev": {
+        "symfony/var-dumper": "^6.4"
     }
 }

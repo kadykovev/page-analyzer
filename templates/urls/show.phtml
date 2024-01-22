@@ -1,0 +1,39 @@
+<main class="flex-grow-1">
+    <div class="container-lg mt-3">
+        <h1><?= $urlData['name'] ?></h1>
+    <div class="table-responsive">
+    <table class="table table-bordered table-hover text-nowrap" data-test="url">
+        <tbody>
+            <tr>
+                <td>ID</td>
+                <td><?= $urlData['id'] ?></td>
+            </tr>
+            <tr>
+                <td>Имя</td>
+                <td><?= $urlData['name'] ?></td>
+            </tr>
+            <tr>
+                <td>Дата создания</td>
+                <td><?= $urlData['created_at'] ?></td>
+            </tr>
+        </tbody>
+    </table>
+  </div>
+  <h2 class="mt-5 mb-3">Проверки</h2>
+  <form method="post" action="/urls/4/checks">
+        <input type="submit" class="btn btn-primary" value="Запустить проверку">
+  </form>
+        <table class="table table-bordered table-hover" data-test="checks">
+            <tbody>
+                <tr>
+                    <th>ID</th>
+                    <th>Код ответа</th>
+                    <th>h1</th>
+                    <th>title</th>
+                    <th>description</th>
+                    <th>Дата создания</th>
+                </tr>
+          </tbody>
+        </table>
+    </div>
+</main>
