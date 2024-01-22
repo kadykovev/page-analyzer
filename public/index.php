@@ -47,10 +47,10 @@ $container->set('pdo', function () {
     $username = $databaseUrl['user'];
     $password = $databaseUrl['pass'];
     $host = $databaseUrl['host'];
-    $port = $databaseUrl['port'] ?? '';
+    $port = $databaseUrl['port'];
     $dbName = ltrim($databaseUrl['path'], '/');
 
-    if ($port !== '') {
+    if (isset($port)) {
         $dsn = sprintf("pgsql:host=%s;port=%d;dbname=%s;user=%s;password=%s", $host, $port, $dbName, $username, $password);
     } else {
         $dsn = sprintf("pgsql:host=%s;dbname=%s;user=%s;password=%s", $host, $dbName, $username, $password);
