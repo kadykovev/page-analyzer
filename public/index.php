@@ -49,7 +49,12 @@ $container->set('pdo', function () {
     $host = $databaseUrl['host'];
     $port = $databaseUrl['port'] ?? '';
     $dbName = ltrim($databaseUrl['path'], '/');
-    $dsn = sprintf("pgsql:host=%s;port=%d;dbname=%s;user=%s;password=%s", $host, $port, $dbName, $username, $password);
+
+    if ($port !== '') {
+        $dsn = sprintf("pgsql:host=%s;port=%d;dbname=%s;user=%s;password=%s", $host, $port, $dbName, $username, $password);
+    } else {
+        $dsn = sprintf("pgsql:host=%s;dbname=%s;user=%s;password=%s", $host, $dbName, $username, $password);
+    }
 
     $pdo = new \PDO($dsn);
     $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
