@@ -51,9 +51,22 @@ $container->set('pdo', function () {
     $dbName = ltrim($databaseUrl['path'], '/');
 
     if (isset($port)) {
-        $dsn = sprintf("pgsql:host=%s;port=%d;dbname=%s;user=%s;password=%s", $host, $port, $dbName, $username, $password);
+        $dsn = sprintf(
+            "pgsql:host=%s;port=%d;dbname=%s;user=%s;password=%s",
+            $host,
+            $port,
+            $dbName,
+            $username,
+            $password
+        );
     } else {
-        $dsn = sprintf("pgsql:host=%s;dbname=%s;user=%s;password=%s", $host, $dbName, $username, $password);
+        $dsn = sprintf(
+            "pgsql:host=%s;dbname=%s;user=%s;password=%s",
+            $host,
+            $dbName,
+            $username,
+            $password
+        );
     }
 
     $pdo = new \PDO($dsn);
@@ -63,7 +76,6 @@ $container->set('pdo', function () {
     return $pdo;
 });
 
-
 $router = $app->getRouteCollector()->getRouteParser();
 
 $app->get('/', function ($request, $response) {
@@ -72,7 +84,23 @@ $app->get('/', function ($request, $response) {
 
 $app->get('/urls', function ($request, $response) {
     $pdo = $this->get('pdo');
-    $stmt = $pdo->query('SELECT * FROM urls ORDER BY id DESC');
+    $sql = 'SELECT
+                urls.id,
+                urls.name,
+                max(url_checks.created_at) AS last_check,
+                url_checks.status_code 
+            FROM
+                url_checks 
+            RIGHT JOIN
+                urls 
+                    ON url_checks.url_id = urls.id 
+            GROUP BY
+                urls.id,
+                urls.name,
+                url_checks.status_code 
+            ORDER BY
+                urls.id DESC';
+    $stmt = $pdo->query($sql);
     $urlsData = $stmt->fetchAll();
     $params = ['urlsData' => $urlsData];
     return $this->get('renderer')->render($response, 'urls/index.phtml', $params);
@@ -89,8 +117,12 @@ $app->get('/urls/{id}', function ($request, $response, $args) {
         die('Нет такого URL');
     }
 
+    $stmt = $pdo->prepare('SELECT * FROM url_checks WHERE url_id = ? ORDER BY id DESC');
+    $stmt->execute([$id]);
+    $urlChecksData = $stmt->fetchAll();
+
     $messages = $this->get('flash')->getMessages();
-    $params = ['flash' => $messages, 'urlData' => $urlData];
+    $params = ['flash' => $messages, 'urlData' => $urlData, 'urlChecksData' => $urlChecksData];
     return $this->get('renderer')->render($response, 'urls/show.phtml', $params);
 })->setName('showUrl');
 
@@ -137,6 +169,27 @@ $app->post('/urls', function ($request, $response) use ($router) {
 
     $response = $response->withStatus(422);
     return $this->get('renderer')->render($response, 'home.phtml', $params);
+});
+
+$app->post('/urls/{url_id}/checks', function ($request, $response, $args) use ($router) {
+    $id = $args['url_id'];
+    $pdo = $this->get('pdo');
+    $stmt = $pdo->prepare('SELECT * FROM urls WHERE id = ?');
+    $stmt->execute([$id]);
+    $urlData = $stmt->fetch();
+
+    if (!$urlData) {
+        die('Нет такого URL');
+    }
+
+    $timestamp = Carbon::now()->toDateTimeString();
+    $stmt = $pdo->prepare('INSERT INTO url_checks (url_id, created_at) VALUES (?, ?)');
+    $stmt->execute([$id, $timestamp]);
+
+    $this->get('flash')->addMessage('success', 'Страница успешно проверена');
+
+    $url = $router->urlFor('showUrl', ['id' => $id]);
+    return $response->withRedirect($url);
 });
 
 $app->run();

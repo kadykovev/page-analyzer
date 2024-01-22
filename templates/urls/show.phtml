@@ -20,7 +20,7 @@
     </table>
   </div>
   <h2 class="mt-5 mb-3">Проверки</h2>
-  <form method="post" action="/urls/4/checks">
+  <form method="post" action="/urls/<?= $urlData['id'] ?>/checks">
         <input type="submit" class="btn btn-primary" value="Запустить проверку">
   </form>
         <table class="table table-bordered table-hover" data-test="checks">
@@ -33,6 +33,16 @@
                     <th>description</th>
                     <th>Дата создания</th>
                 </tr>
+                <?php foreach ($urlChecksData as $urlCheck) : ?>
+                    <tr>
+                        <td><?= $urlCheck['id'] ?></td>
+                        <td></td>
+                        <td class="text-break"></td>
+                        <td class="text-break"></td>
+                        <td class="text-break"></td>
+                        <td><?= $urlCheck['created_at'] ?></td>
+                    </tr>
+                <?php endforeach ?>
           </tbody>
         </table>
     </div>

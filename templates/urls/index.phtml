@@ -16,8 +16,8 @@
                     <td>
                         <a href="/urls/<?= $urlData['id'] ?>"><?= $urlData['name'] ?></a>
                     </td>
-                    <td></td>
-                    <td></td>
+                    <td><?= $urlData['last_check'] ?></td>
+                    <td><?= $urlData['status_code'] ?></td>
                 </tr>
             <?php endforeach ?>
         </tbody>
