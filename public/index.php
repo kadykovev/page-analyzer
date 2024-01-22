@@ -47,7 +47,7 @@ $container->set('pdo', function () {
     $username = $databaseUrl['user'];
     $password = $databaseUrl['pass'];
     $host = $databaseUrl['host'];
-    $port = $databaseUrl['port'];
+    $port = $databaseUrl['port'] ?? null;
     $dbName = ltrim($databaseUrl['path'], '/');
 
     if (isset($port)) {
