@@ -14,5 +14,5 @@ COPY . .
 
 RUN composer install
 
-CMD ["bash", "-c", "create database"]
+CMD ["bash", "-c", "make create database"]
 CMD ["bash", "-c", "make start"]
