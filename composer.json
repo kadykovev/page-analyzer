@@ -24,7 +24,8 @@
         "slim/flash": "^0.4.0",
         "illuminate/support": "^10.41",
         "nesbot/carbon": "^2.72",
-        "vlucas/valitron": "^1.4"
+        "vlucas/valitron": "^1.4",
+        "guzzlehttp/guzzle": "^7.0"
     },
     "scripts": {
         "post-autoload-dump": [

@@ -9,6 +9,13 @@ use Carbon\Carbon;
 use Slim\Routing\RouteContext;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\RequestException;
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\ServerException;
+use GuzzleHttp\Exception\ClientException;
+
+use function DI\string;
 
 session_start();
 
@@ -177,18 +184,43 @@ $app->post('/urls/{url_id}/checks', function ($request, $response, $args) use ($
     $stmt = $pdo->prepare('SELECT * FROM urls WHERE id = ?');
     $stmt->execute([$id]);
     $urlData = $stmt->fetch();
+    $url = $router->urlFor('showUrl', ['id' => $id]);
 
     if (!$urlData) {
         die('Нет такого URL');
     }
 
+    try {
+        $requestOptions = [
+            'allow_redirects' => false,
+            'connect_timeout' => 1,
+            'timeout' => 1
+        ];
+        $client = new Client($requestOptions);
+        $res = $client->get($urlData['name']);
+        //$res = $client->get('http://127.0.0.1/url');
+    } catch (ConnectException $e) {
+        $this->get('flash')->addMessage('danger', 'Произошла ошибка при проверке, не удалось подключиться');
+        return $response->withRedirect($url);
+    } catch (ClientException $e) {
+        $this->get('flash')->addMessage('warning', 'Проверка была выполнена успешно, но сервер ответил с ошибкой');
+        return $response->withRedirect($url);
+        //dump($e->getResponse());
+    } catch (ServerException $e) {
+        $this->get('flash')->addMessage('warning', 'Проверка была выполнена успешно, но сервер ответил с ошибкой');
+        return $response->withRedirect($url);
+    }
+
+    //dump($res);
+    $statusCode = $res->getStatusCode();
+
     $timestamp = Carbon::now()->toDateTimeString();
-    $stmt = $pdo->prepare('INSERT INTO url_checks (url_id, created_at) VALUES (?, ?)');
-    $stmt->execute([$id, $timestamp]);
+    $stmt = $pdo->prepare('INSERT INTO url_checks (url_id, status_code, created_at) VALUES (?, ?, ?)');
+    $stmt->execute([$id, $statusCode, $timestamp]);
 
     $this->get('flash')->addMessage('success', 'Страница успешно проверена');
 
-    $url = $router->urlFor('showUrl', ['id' => $id]);
+
     return $response->withRedirect($url);
 });
 
