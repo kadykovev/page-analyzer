@@ -10,5 +10,5 @@ validate:
 	composer validate
 
 lint:
-	composer exec --verbose phpcs -- --standard=PSR12 src public/index.php
+	composer exec --verbose phpcs -- --standard=PSR12 public/index.php
 	composer exec --verbose phpstan
