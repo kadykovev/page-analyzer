@@ -9,13 +9,12 @@ use Carbon\Carbon;
 use Slim\Routing\RouteContext;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
+use Slim\Exception\HttpNotFoundException;
 use GuzzleHttp\Client;
-use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\ServerException;
 use GuzzleHttp\Exception\ClientException;
-
-use function DI\string;
+use DiDom\Document;
 
 session_start();
 
@@ -25,13 +24,29 @@ $app = AppFactory::createFromContainer($container);
 $app->add(function (Request $request, RequestHandler $handler) use ($container) {
     $routeContext = RouteContext::fromRequest($request);
     $route = $routeContext->getRoute();
-    $container->set('routeName', $routeName = !empty($route) ? $route->getName() : '');
-
+    $container->set('routeName', $route->getName());
     return $handler->handle($request);
 });
 
 $app->addRoutingMiddleware();
-$app->addErrorMiddleware(true, true, true);
+
+$customErrorHandler = function (
+    Request $request,
+    Throwable $exception
+) use ($app) {
+    if ($exception instanceof HttpNotFoundException) {
+        $response = $app->getResponseFactory()->createResponse();
+        $response->withStatus(404);
+        return $this->get('renderer')->render($response, 'errors/404.phtml');
+    } else {
+        $response = $app->getResponseFactory()->createResponse();
+        $response->withStatus(500);
+        return $this->get('renderer')->render($response, 'errors/500.phtml');
+    }
+};
+
+$errorMiddleware = $app->addErrorMiddleware(true, true, true);
+$errorMiddleware->setDefaultErrorHandler($customErrorHandler);
 
 $container->set('renderer', function () use ($container) {
     $phpVew = new \Slim\Views\PhpRenderer(__DIR__ . '/../templates');
@@ -42,6 +57,10 @@ $container->set('renderer', function () use ($container) {
 
 $container->set('flash', function () {
     return new \Slim\Flash\Messages();
+});
+
+$container->set('router', function () use ($app) {
+    return $app->getRouteCollector()->getRouteParser();
 });
 
 $container->set('pdo', function () {
@@ -83,7 +102,13 @@ $container->set('pdo', function () {
     return $pdo;
 });
 
-$router = $app->getRouteCollector()->getRouteParser();
+$container->set('getUrllData', function () {
+    return function (\PDO $pdo, string $field, string|int $value) {
+        $stmt = $pdo->prepare("SELECT * FROM urls WHERE {$field} = ?");
+        $stmt->execute([$value]);
+        return $stmt->fetch();
+    };
+});
 
 $app->get('/', function ($request, $response) {
     return $this->get('renderer')->render($response, 'home.phtml');
@@ -110,18 +135,17 @@ $app->get('/urls', function ($request, $response) {
     $stmt = $pdo->query($sql);
     $urlsData = $stmt->fetchAll();
     $params = ['urlsData' => $urlsData];
+
     return $this->get('renderer')->render($response, 'urls/index.phtml', $params);
 })->setName('urls');
 
 $app->get('/urls/{id}', function ($request, $response, $args) {
     $id = $args['id'];
     $pdo = $this->get('pdo');
-    $stmt = $pdo->prepare('SELECT * FROM urls WHERE id = ?');
-    $stmt->execute([$id]);
-    $urlData = $stmt->fetch();
+    $urlData = $this->call($this->get('getUrllData'), [$pdo, 'id', $id]);
 
     if (!$urlData) {
-        die('Нет такого URL');
+        throw new HttpNotFoundException($request);
     }
 
     $stmt = $pdo->prepare('SELECT * FROM url_checks WHERE url_id = ? ORDER BY id DESC');
@@ -133,8 +157,9 @@ $app->get('/urls/{id}', function ($request, $response, $args) {
     return $this->get('renderer')->render($response, 'urls/show.phtml', $params);
 })->setName('showUrl');
 
-$app->post('/urls', function ($request, $response) use ($router) {
+$app->post('/urls', function ($request, $response) {
     $urlData = $request->getParsedBodyParam('url');
+
     $validator = new Validator(['name' => $urlData['name']]);
     $validator->rule('required', 'name')->message('URL не должен быть пустым');
     $validator->rule('url', 'name')->message('Некорректный URL');
@@ -143,28 +168,21 @@ $app->post('/urls', function ($request, $response) use ($router) {
     if ($validator->validate()) {
         $parsedURL = parse_url($urlData['name']);
         $normilizedUrl = sprintf('%s://%s', $parsedURL['scheme'], $parsedURL['host']);
-        $timestamp = Carbon::now()->toDateTimeString();
 
-        try {
-            $pdo = $this->get('pdo');
-            $stmt = $pdo->prepare('SELECT * FROM urls WHERE name = ?');
-            $stmt->execute([$normilizedUrl]);
-            $existedUrl = $stmt->fetch();
+        $pdo = $this->get('pdo');
+        $existedUrl = $this->call($this->get('getUrllData'), [$pdo, 'name', $normilizedUrl]);
 
-            if (!$existedUrl) {
-                $stmt = $pdo->prepare('INSERT INTO urls (name, created_at) VALUES (?, ?)');
-                $stmt->execute([$normilizedUrl, $timestamp]);
-                $id = $pdo->lastInsertId();
-                $this->get('flash')->addMessage('success', 'Страница успешно добавлена');
-            } else {
-                $id = $existedUrl['id'];
-                $this->get('flash')->addMessage('success', 'Страница уже существует');
-            }
-        } catch (\Exception $e) {
-            die($e->getMessage());
+        if (!$existedUrl) {
+            $stmt = $pdo->prepare('INSERT INTO urls (name, created_at) VALUES (?, ?)');
+            $stmt->execute([$normilizedUrl, Carbon::now()]);
+            $id = $pdo->lastInsertId();
+            $this->get('flash')->addMessage('success', 'Страница успешно добавлена');
+        } else {
+            $id = $existedUrl['id'];
+            $this->get('flash')->addMessage('success', 'Страница уже существует');
         }
 
-        $url = $router->urlFor('showUrl', ['id' => $id]);
+        $url = $this->get('router')->urlFor('showUrl', ['id' => $id]);
         return $response->withRedirect($url);
     }
 
@@ -178,48 +196,58 @@ $app->post('/urls', function ($request, $response) use ($router) {
     return $this->get('renderer')->render($response, 'home.phtml', $params);
 });
 
-$app->post('/urls/{url_id}/checks', function ($request, $response, $args) use ($router) {
+$app->post('/urls/{url_id}/checks', function ($request, $response, $args) {
     $id = $args['url_id'];
     $pdo = $this->get('pdo');
-    $stmt = $pdo->prepare('SELECT * FROM urls WHERE id = ?');
-    $stmt->execute([$id]);
-    $urlData = $stmt->fetch();
-    $url = $router->urlFor('showUrl', ['id' => $id]);
+    $urlData = $this->call($this->get('getUrllData'), [$pdo, 'id', $id]);
+    $url = $this->get('router')->urlFor('showUrl', ['id' => $id]);
 
     if (!$urlData) {
-        die('Нет такого URL');
+        throw new HttpNotFoundException($request);
     }
 
     try {
         $requestOptions = [
             'allow_redirects' => false,
-            'connect_timeout' => 1,
-            'timeout' => 1
+            'connect_timeout' => 10,
+            'timeout' => 10
         ];
         $client = new Client($requestOptions);
         $res = $client->get($urlData['name']);
-        //$res = $client->get('http://127.0.0.1/url');
     } catch (ConnectException $e) {
         $this->get('flash')->addMessage('danger', 'Произошла ошибка при проверке, не удалось подключиться');
         return $response->withRedirect($url);
     } catch (ClientException $e) {
         $this->get('flash')->addMessage('warning', 'Проверка была выполнена успешно, но сервер ответил с ошибкой');
         return $response->withRedirect($url);
-        //dump($e->getResponse());
     } catch (ServerException $e) {
         $this->get('flash')->addMessage('warning', 'Проверка была выполнена успешно, но сервер ответил с ошибкой');
         return $response->withRedirect($url);
     }
 
-    //dump($res);
     $statusCode = $res->getStatusCode();
+    $html = (string) $res->getBody();
 
-    $timestamp = Carbon::now()->toDateTimeString();
-    $stmt = $pdo->prepare('INSERT INTO url_checks (url_id, status_code, created_at) VALUES (?, ?, ?)');
-    $stmt->execute([$id, $statusCode, $timestamp]);
+    $document = new Document();
+
+    if ($html !== '') {
+        $document->loadHtml($html);
+    }
+
+    $description = $document->first('meta[name=description]::attr(content)');
+    $h1 = optional($document->first('h1'))->innerHtml();
+    $title = optional($document->first('title'))->innerHtml();
+
+    $sql = 'INSERT 
+            INTO
+                url_checks
+                (url_id, status_code, h1, title, description, created_at) 
+            VALUES
+                (?, ?, ?, ?, ?, ?)';
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$id, $statusCode, $h1, $title, $description, Carbon::now()]);
 
     $this->get('flash')->addMessage('success', 'Страница успешно проверена');
-
 
     return $response->withRedirect($url);
 });

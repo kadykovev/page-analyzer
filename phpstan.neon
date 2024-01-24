@@ -1,0 +1,5 @@
+parameters:
+    checkMissingIterableValueType: true
+    level: 6
+    paths:
+        - public
