@@ -14,7 +14,5 @@ parameters:
   reportMaybesInPropertyPhpDocTypes: false
 
   ignoreErrors:
-   - '#Cannot call method getName\(\) on Slim\\Interfaces\\RouteInterface\|null#'
    - '#Undefined variable: \$this#'
-   - '#Parameter \#1 \$url of function parse_url expects string, string\|false given#'
    - '#Cannot access offset [\S]+ on array\{#'

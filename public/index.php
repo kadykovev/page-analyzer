@@ -24,7 +24,7 @@ $app = AppFactory::createFromContainer($container);
 $app->add(function (Request $request, RequestHandler $handler) use ($container) {
     $routeContext = RouteContext::fromRequest($request);
     $route = $routeContext->getRoute();
-    $container->set('routeName', $route->getName());
+    $container->set('routeName', $route ? $route->getName() : '');
     return $handler->handle($request);
 });
 
@@ -64,7 +64,7 @@ $container->set('router', function () use ($app) {
 });
 
 $container->set('pdo', function () {
-    $databaseUrl = parse_url(getenv('DATABASE_URL'));
+    $databaseUrl = parse_url((string) getenv('DATABASE_URL'));
 
     if (!$databaseUrl) {
         throw new \Exception("Error reading the database URL");
