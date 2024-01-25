@@ -15,4 +15,4 @@ parameters:
 
   ignoreErrors:
    - '#Undefined variable: \$this#'
-   - '#Cannot access offset [\S]+ on array\{#'
+   - '#Cannot access offset [\S]+ on array#'
