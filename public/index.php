@@ -213,7 +213,7 @@ $app->post('/urls/{url_id}/checks', function ($request, $response, $args) {
             'timeout' => 10
         ];
         $client = new Client($requestOptions);
-        $res = $client->get($urlData['name']);
+        $result = $client->get($urlData['name']);
     } catch (ConnectException $e) {
         $this->get('flash')->addMessage('danger', 'Произошла ошибка при проверке, не удалось подключиться');
         return $response->withRedirect($url);
@@ -225,8 +225,8 @@ $app->post('/urls/{url_id}/checks', function ($request, $response, $args) {
         return $response->withRedirect($url);
     }
 
-    $statusCode = $res->getStatusCode();
-    $html = (string) $res->getBody();
+    $statusCode = $result->getStatusCode();
+    $html = (string) $result->getBody();
 
     $document = new Document();
 
