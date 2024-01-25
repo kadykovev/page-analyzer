@@ -13,7 +13,7 @@ Demo: https://project-page-analyzer.onrender.com/
 
 * PHP >= 8
 * Composer
-* Postgreql
+* Postgresql
 
 ## Installation
 
