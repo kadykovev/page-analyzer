@@ -37,4 +37,3 @@ psql -a -d $DATABASE_URL -f database.sql
 make start
 ```
 Open in browser: http://0.0.0.0:8000
-
