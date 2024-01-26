@@ -117,23 +117,31 @@ $app->get('/', function ($request, $response) {
 $app->get('/urls', function ($request, $response) {
     $pdo = $this->get('pdo');
     $sql = 'SELECT
-                urls.id,
-                urls.name,
-                max(url_checks.created_at) AS last_check,
-                url_checks.status_code 
+                DISTINCT 
+                    ON (url_id) url_id,
+                    status_code,
+                    created_at     
             FROM
-                url_checks 
-            RIGHT JOIN
-                urls 
-                    ON url_checks.url_id = urls.id 
-            GROUP BY
-                urls.id,
-                urls.name,
-                url_checks.status_code 
+                url_checks     
             ORDER BY
-                urls.id DESC';
+                url_id,
+                created_at DESC';
     $stmt = $pdo->query($sql);
-    $urlsData = $stmt->fetchAll();
+    $urlChecks = $stmt->fetchAll();
+
+    $urlChecksKeyAsUrlId = array_reduce($urlChecks, function ($acc, $item) {
+        $acc[$item['url_id']] = ['status_code' => $item['status_code'], 'created_at' => $item['created_at']];
+        return $acc;
+    }, []);
+
+    $stmt = $pdo->query('SELECT id, name FROM urls ORDER BY id DESC');
+    $urls = $stmt->fetchAll();
+
+    $urlsData = array_map(function ($item) use ($urlChecksKeyAsUrlId) {
+        $urlChecks = $urlChecksKeyAsUrlId[$item['id']] ?? ['status_code' => '', 'created_at' => ''];
+        return array_merge($item, $urlChecks);
+    }, $urls);
+
     $params = ['urlsData' => $urlsData];
 
     return $this->get('renderer')->render($response, 'urls/index.phtml', $params);
@@ -217,10 +225,7 @@ $app->post('/urls/{url_id}/checks', function ($request, $response, $args) {
     } catch (ConnectException $e) {
         $this->get('flash')->addMessage('danger', 'Произошла ошибка при проверке, не удалось подключиться');
         return $response->withRedirect($url);
-    } catch (ClientException $e) {
-        $this->get('flash')->addMessage('warning', 'Проверка была выполнена успешно, но сервер ответил с ошибкой');
-        return $response->withRedirect($url);
-    } catch (ServerException $e) {
+    } catch (ClientException | ServerException $e) {
         $this->get('flash')->addMessage('warning', 'Проверка была выполнена успешно, но сервер ответил с ошибкой');
         return $response->withRedirect($url);
     }
